@@ -12,11 +12,12 @@ import torch.nn.functional as F
 
 torch.manual_seed(0)
 
-class BasicBlock(nn.Module):
+
+class BasicBlockNeg(nn.Module):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, a=False, last=False):
-        super(BasicBlock, self).__init__()
+        super(BasicBlockNeg, self).__init__()
         self.conv1 = nn.Conv2d(
             in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -40,18 +41,18 @@ class BasicBlock(nn.Module):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         if self.last:
-            out += self.shortcut(x) * (self.a)
+            out += self.shortcut(x) * (-self.a)
         else:
             out += self.shortcut(x) * self.a 
         out = F.relu(out)
         return out
 
 
-class Bottleneck(nn.Module):
+class BottleneckNeg(nn.Module):
     expansion = 4
 
     def __init__(self, in_planes, planes, stride=1, a=False, last=False):
-        super(Bottleneck, self).__init__()
+        super(BottleneckNeg, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
@@ -81,16 +82,16 @@ class Bottleneck(nn.Module):
         out = F.relu(self.bn2(self.conv2(out)))
         out = self.bn3(self.conv3(out))
         if self.last:
-            out += self.shortcut(x) * (self.a)
+            out += self.shortcut(x) * (-self.a)
         else:
             out += self.shortcut(x) * self.a 
         out = F.relu(out)
         return out
 
 
-class ResNet(nn.Module):
+class NegNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, a=False):
-        super(ResNet, self).__init__()
+        super(NegNet, self).__init__()
         self.a = a
         self.in_planes = 64
 
@@ -100,14 +101,17 @@ class ResNet(nn.Module):
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2, last=False)
+        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2, last=True)
         self.linear = nn.Linear(512*block.expansion, num_classes)
         
     def _make_layer(self, block, planes, num_blocks, stride, last=False):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride, a=self.a, last=last))
+        for i, stride in enumerate(strides):
+            if last and i == len(strides) - 1:
+                layers.append(block(self.in_planes, planes, stride, a=self.a, last=last))
+            else:
+                layers.append(block(self.in_planes, planes, stride, a=self.a, last=False))
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
@@ -123,28 +127,28 @@ class ResNet(nn.Module):
         return out
 
 
-def ResNet18(num_classes=10, a=False):
-    return ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes, a=a)
+def NegNet18(num_classes=10, a=False):
+    return NegNet(BasicBlockNeg, [2, 2, 2, 2], num_classes=num_classes, a=a)
 
 
-def ResNet34(num_classes=10, a=False):
-    return ResNet(BasicBlock, [3, 4, 6, 3], num_classes=num_classes, a=a)
+def NegNet34(num_classes=10, a=False):
+    return NegNet(BasicBlockNeg, [3, 4, 6, 3], num_classes=num_classes, a=a)
 
 
-def ResNet50(num_classes=10, a=False):
-    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes, a=a)
+def NegNet50(num_classes=10, a=False):
+    return NegNet(BottleneckNeg, [3, 4, 6, 3], num_classes=num_classes, a=a)
 
 
-def ResNet101(num_classes=10, a=False):
-    return ResNet(Bottleneck, [3, 4, 23, 3], num_classes=num_classes, a=a)
+def NegNet101(num_classes=10, a=False):
+    return NegNet(BottleneckNeg, [3, 4, 23, 3], num_classes=num_classes, a=a)
 
 
 def ResNet152():
-    return ResNet(Bottleneck, [3, 8, 36, 3])
+    return NegNet(BottleneckNeg, [3, 8, 36, 3])
 
 
 def test():
-    net = ResNet18()
+    net = NegNet18()
     y = net(torch.randn(1, 3, 32, 32))
     print(y.size())
 

@@ -13,9 +13,12 @@ import os
 import argparse
 
 from models import *
-from utils import progress_bar
+# from utils import progress_bar
 
 import logging
+
+torch.manual_seed(0)
+np.random.seed(0)
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -72,7 +75,7 @@ net = ResNet18(a=False)
 # net = RegNetX_200MF()
 # net = SimpleDLA()
 
-log_filename = "./logs/resnet-18-lzero.log"
+log_filename = "./logs/resnet-18-vanilla-seed0.log"
 logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 net = net.to(device)
@@ -98,6 +101,7 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 # Training
 def train(epoch):
     print('\nEpoch: %d' % epoch)
+    logging.info(f'Epoch {epoch}')
     net.train()
     train_loss = 0
     correct = 0
@@ -117,8 +121,10 @@ def train(epoch):
 
         train_acc = 100.*correct/total
 
-        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                     % (train_loss/(batch_idx+1), train_acc, correct, total))
+        # progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+        #              % (train_loss/(batch_idx+1), train_acc, correct, total))
+    print(f'Train Loss: {train_loss/(batch_idx + 1)}, Train accuracy: {train_acc}')
+    logging.info(f'Train Loss: {train_loss/(batch_idx + 1)}, Train accuracy: {train_acc}')
     
     return train_loss, train_acc
 
@@ -140,8 +146,8 @@ def test(epoch):
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-            progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                         % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+            # progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+            #              % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
     # Save checkpoint.
     acc = 100.*correct/total
@@ -157,9 +163,12 @@ def test(epoch):
         torch.save(state, './checkpoint/ckpt.pth')
         best_acc = acc
 
+    print(f'Test Loss: {test_loss/(batch_idx + 1)}, Test accuracy: {acc}')
+    logging.info(f'Test Loss: {test_loss/(batch_idx + 1)}, Test accuracy: {acc}')
+
     return test_loss, acc
 
-total_epochs = 50
+total_epochs = 300
 train_loss_arr = []
 train_acc_arr = []
 test_loss_arr = []
